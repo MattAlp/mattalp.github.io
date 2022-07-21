@@ -1,0 +1,59 @@
+<svg width="732" height="688" viewBox="0 0 549 516" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<g id="graph0" class="graph" transform="translate(5.1531151741220675,420.3231279848451) scale(1.2882787935305169)">
+<polygon fill="white" stroke="transparent" points="-4,4 -4,-256 422.15,-256 422.15,4 -4,4"/>
+<!-- Send -->
+<g id="node1" class="node">
+<title>SendNode</title>
+<ellipse fill="none" stroke="black" cx="201.04" cy="-234" rx="51.04" ry="18"/>
+<text text-anchor="middle" x="201.04" y="-229.8" font-family="Times,serif" font-size="14.00">SendNode</text>
+</g>
+<!-- Dispa -->
+<g id="node2" class="node">
+<title>DispatchNode</title>
+<ellipse fill="none" stroke="black" cx="201.03999999999996" cy="-162" rx="66.06" ry="18"/>
+<text text-anchor="middle" x="201.03999999999996" y="-157.8" font-family="Times,serif" font-size="14.00">DispatchNode</text>
+</g>
+<!-- SendNode&#45;&gt;Dispa -->
+<g id="edge1" class="edge">
+<title>SendNode-&gt;DispatchNode</title>
+<path fill="none" stroke="black" d="M201.04,-215.7C201.04,-207.98 201.04,-198.71 201.04,-190.11"/>
+<polygon fill="black" stroke="black" points="204.54,-190.1 201.04,-180.1 197.54,-190.1 204.54,-190.1"/>
+</g>
+<!-- Dispa -->
+<g id="node3" class="node">
+<title>LookupMethodNode</title>
+<ellipse fill="none" stroke="black" cx="92.03999999999996" cy="-90" rx="92.07" ry="18"/>
+<text text-anchor="middle" x="92.03999999999996" y="-85.8" font-family="Times,serif" font-size="14.00">LookupMethodNode</text>
+</g>
+<!-- DispatchNode&#45;&gt;w -->
+<g id="edge2" class="edge">
+<title>DispatchNode-&gt;LookupMethodNode</title>
+<path fill="none" stroke="black" d="M176.3,-145.12C161.46,-135.59 142.38,-123.33 126.12,-112.89"/>
+<polygon fill="black" stroke="black" points="127.73,-109.77 117.43,-107.31 123.95,-115.66 127.73,-109.77"/>
+</g>
+<!-- D -->
+<g id="node4" class="node">
+<title>CallInternalMethodNode</title>
+<ellipse fill="none" stroke="black" cx="310.04" cy="-90" rx="108.23" ry="18"/>
+<text text-anchor="middle" x="310.04" y="-85.79999999999995" font-family="Times,serif" font-size="14.00">CallInternalMethodNode</text>
+</g>
+<!-- DispatchNode&#45;&gt;Call -->
+<g id="edge3" class="edge">
+<title>DispatchNode-&gt;CallInternalMethodNode</title>
+<path fill="none" stroke="black" d="M225.77,-145.12C240.5,-135.65 259.42,-123.5 275.6,-113.11"/>
+<polygon fill="black" stroke="black" points="277.74,-115.9 284.26,-107.55 273.96,-110.01 277.74,-115.9"/>
+</g>
+<!-- Call -->
+<g id="node5" class="node">
+<title>DirectCallNode</title>
+<ellipse fill="none" stroke="black" cx="310.04" cy="-18" rx="72.35" ry="18"/>
+<text text-anchor="middle" x="310.04" y="-13.799999999999955" font-family="Times,serif" font-size="14.00">DirectCallNode</text>
+</g>
+<!-- CallInternalMethodNode&#45;&gt;Call -->
+<g id="edge4" class="edge">
+<title>CallInternalMethodNode-&gt;DirectCallNode</title>
+<path fill="none" stroke="black" d="M310.04,-71.7C310.04,-63.98 310.04,-54.71 310.04,-46.11"/>
+<polygon fill="black" stroke="black" points="313.54,-46.1 310.04,-36.1 306.54,-46.1 313.54,-46.1"/>
+</g>
+</g>
+</svg>

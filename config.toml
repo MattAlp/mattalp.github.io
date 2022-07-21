@@ -1,4 +1,40 @@
-baseURL = 'https://MattAlp.github.io'
+baseURL = 'https://mattalp.com'
+relativeURLs = true
 languageCode = 'en-us'
 title = 'Matthew Alp'
-theme = ["hugo-video", "ananke"]
+author = 'Matthew Alp'
+theme = ["hugo-video", "hugo-tanka"]
+enableEmoji=true
+canonifyurls=true
+
+# [[menu.main]]
+# identifier = "about"
+# name = "About"
+# url = "/about"
+# weight = 1
+
+# [[menu.main]]
+# identifier = "posts"
+# name = "Posts"
+# url = "/posts/"
+# weight = 2
+
+[[menu.primary]]
+    name = "Home"
+    url = "/"
+    weight = 1
+[[menu.primary]]
+    name = "About"
+    url = "/about/"
+    weight = 2
+
+[params]
+    sitename = "Matt Alp"
+    author = 'Matthew Alp'
+    description = "I infrequently write about code."
+    highlightjs = true
+    highlightjslanguages = ["java", "python", "ruby"]
+    uselatex = true
+     progressively = false
+    # disableSummary = true
+    # readMore = true

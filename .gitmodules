@@ -1,6 +1,6 @@
-[submodule "themes/ananke"]
-	path = themes/ananke
-	url = https://github.com/theNewDynamic/gohugo-theme-ananke.git
 [submodule "themes/hugo-video"]
 	path = themes/hugo-video
 	url = https://github.com/martignoni/hugo-video.git
+[submodule "themes/hugo-tanka"]
+	path = themes/hugo-tanka
+	url = https://github.com/nanxstats/hugo-tanka.git
