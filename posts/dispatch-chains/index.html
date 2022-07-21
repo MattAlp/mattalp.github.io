@@ -90,13 +90,13 @@ p <span style=color:#66d9ef>RubyVM</span><span style=color:#f92672>.</span>stat
 </span>
 </h2><p>This is where <a href=https://en.wikipedia.org/wiki/Inline_caching>(polymorphic) inline caches</a> and <a href=https://chrisseaton.com/truffleruby/pldi15-metaprogramming/pldi15-marr-et-al-zero-overhead-metaprogramming.pdf>dispatch chaining</a> come in.</p>
 <p>Let&rsquo;s start with an inline cache; a small cache included <em>inline</em> (traditionally alongside a call site for a method) that removes the need for redundant method lookup work.</p>
-<video preload=auto width=100% autoplay loop playsinline class=html-video>
+<video preload=auto width=100% autoplay loop muted playsinline class=html-video>
 <source src=/posts/dispatch-chains/Inline-Cache.mp4 type=video/mp4>
 <span>Your browser doesn't support embedded videos, but don't worry, you can <a href=/posts/dispatch-chains/Inline-Cache.mp4>download it</a> and watch it with your favorite video player!</span>
 </video>
 <p>The cache described above could be described as monomorphic; it fares best when dealing with call sites that only see one (mono) type used, rather than some small number n > 1 (a polymorphic site) or such a large number of variations that it wouldn&rsquo;t be reasonable to cache and look up entries (a megamorphic site).</p>
 <p>A polymorphic inline cache expands on this by supporting matching on multiple keys (where key is a like a class or name, or <em>generalized</em> to a set of properties such as class <em>and</em> name) to yield multiple call sites.</p>
-<video preload=auto width=100% autoplay loop playsinline class=html-video>
+<video preload=auto width=100% autoplay loop muted playsinline class=html-video>
 <source src=/posts/dispatch-chains/Poly-Inline-Cache.mp4 type=video/mp4>
 <span>Your browser doesn't support embedded videos, but don't worry, you can <a href=/posts/dispatch-chains/Poly-Inline-Cache.mp4>download it</a> and watch it with your favorite video player!</span>
 </video>
@@ -106,14 +106,14 @@ p <span style=color:#66d9ef>RubyVM</span><span style=color:#f92672>.</span>stat
 <li>then on the class,</li>
 <li>then on the bytecode or machine code that represents the returned method, in order to execute code.</li>
 </ul>
-<video preload=auto width=100% autoplay loop playsinline class=html-video>
+<video preload=auto width=100% autoplay loop muted playsinline class=html-video>
 <source src=/posts/dispatch-chains/Dispatch-Chain-Sideways-tree.mp4 type=video/mp4>
 <span>Your browser doesn't support embedded videos, but don't worry, you can <a href=/posts/dispatch-chains/Dispatch-Chain-Sideways-tree.mp4>download it</a> and watch it with your favorite video player!</span>
 </video>
 <p>However, a notable downside of said tree model is that memory use from constructing caches can quickly expand as the tree gets wider and wider at subsequent levels of branching decisions.</p>
 <p>TruffleRuby further develops on this idea by constructing a series of decision trees, with the output of each (polymorphic cache) going as input to the next. This means that if one decision tree produces the same value from multiple branches, the next decision tree sees them as the same value, instead of having a new copy of the tree (and all potential decisions cascading from that point) for the repeated values.</p>
 <p>&mldr;</p>
-<video preload=auto width=100% autoplay loop playsinline class=html-video>
+<video preload=auto width=100% autoplay loop muted playsinline class=html-video>
 <source src=/posts/dispatch-chains/Dispatch-Chain-Sideways-tree-with-duplicates.mp4 type=video/mp4>
 <span>Your browser doesn't support embedded videos, but don't worry, you can <a href=/posts/dispatch-chains/Dispatch-Chain-Sideways-tree-with-duplicates.mp4>download it</a> and watch it with your favorite video player!</span>
 </video>
