@@ -1,0 +1,257 @@
+<!doctype html><html lang=en-us data-theme>
+<head>
+<meta charset=utf-8>
+<meta name=HandheldFriendly content="True">
+<meta name=viewport content="width=device-width,initial-scale=1">
+<meta name=referrer content="no-referrer-when-downgrade">
+<title>On Dispatch Chains - Matthew Alp</title>
+<meta name=description content="Intro     In Ruby, practically everything is an object- an instance of a class containing some data, interacting through sending or receiving messages (via method calls). Unlike statically typed languages, wherein one knows at compile time what the set of messages an object can respond to (i.e. what methods are defined on a class), Ruby provides an extensive suite of ways of extending and modifying this set at run time.">
+<link rel=icon type=image/x-icon href=https://MattAlp.github.io/favicon.ico>
+<link rel=apple-touch-icon-precomposed href=https://MattAlp.github.io/favicon.png>
+<style>body{visibility:hidden;opacity:0}</style>
+<noscript>
+<style>body{visibility:visible;opacity:1}</style>
+</noscript>
+<link rel=stylesheet href=https://MattAlp.github.io/css/style.min.c6a5c56d82abc1aa3a1925bf0b67884906e878e4e5bfb5af069b0a3e35e32569.css integrity="sha256-xqXFbYKrwao6GSW/C2eISQboeOTlv7WvBpsKPjXjJWk=">
+<script src=https://MattAlp.github.io/js/script.min.510c781c39dbb21b4c76d85c82e2bdf4689220adbb7cd61e49e9d293e442fb42.js type=text/javascript integrity="sha256-UQx4HDnbshtMdthcguK99GiSIK27fNYeSenSk+RC+0I="></script>
+<meta property="og:title" content="On Dispatch Chains">
+<meta property="og:description" content="Intro     In Ruby, practically everything is an object- an instance of a class containing some data, interacting through sending or receiving messages (via method calls). Unlike statically typed languages, wherein one knows at compile time what the set of messages an object can respond to (i.e. what methods are defined on a class), Ruby provides an extensive suite of ways of extending and modifying this set at run time.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://MattAlp.github.io/posts/dispatch-chains/"><meta property="article:section" content="posts">
+<meta property="article:published_time" content="2022-07-21T10:53:09-04:00">
+<meta property="article:modified_time" content="2022-07-21T10:53:09-04:00">
+<meta name=twitter:card content="summary">
+<meta name=twitter:title content="On Dispatch Chains">
+<meta name=twitter:description content="Intro     In Ruby, practically everything is an object- an instance of a class containing some data, interacting through sending or receiving messages (via method calls). Unlike statically typed languages, wherein one knows at compile time what the set of messages an object can respond to (i.e. what methods are defined on a class), Ruby provides an extensive suite of ways of extending and modifying this set at run time.">
+</head>
+<body>
+<a class=skip-main href=#main>Skip to main content</a>
+<div class=container>
+<header class=common-header>
+<div class=header-top>
+<h1 class=site-title>
+<a href=/>Matthew Alp</a>
+</h1>
+<ul class=social-icons>
+</ul>
+</div>
+<nav>
+<a href=https://MattAlp.github.io/about title>About</a>
+<a href=https://MattAlp.github.io/posts/ title>Posts</a>
+</nav>
+</header>
+<main id=main tabindex=-1>
+<article class="post h-entry">
+<div class=post-header>
+<header>
+<h1 class="p-name post-title">On Dispatch Chains</h1>
+</header>
+</div>
+<div class="content e-content">
+<h2 id=intro>Intro
+<span>
+<a href=#intro><svg viewBox="0 0 28 23" height="100%" width="19" xmlns="http://www.w3.org/2000/svg"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/></svg>
+</a>
+</span>
+</h2><p>In Ruby, practically everything is an object- an instance of a class containing some data, interacting through sending or receiving messages (via method calls). Unlike statically typed languages, wherein one knows at compile time what the set of messages an object can respond to (i.e. what methods are defined on a class), Ruby provides an extensive suite of ways of extending and modifying this set at run time.</p>
+<p>As a consequence of this paradigm, Ruby must look up the method instructions you wish to invoke every time that you request to call a method by name, which is a costly operation involving traversing the object’s ancestry to ascertain if and where the method itself can be executed from. In the interest of performance, this process is sped up by caching the results of these lookups and removing the need for redundant work.</p>
+<p>In most implementations of Ruby, this is done via inline caching. Historically, this is done in CRuby/MRI through the use of a “global method state (number)” and a “class serial number”. As shown in Aaron Patterson&rsquo;s <a href=https://tenderlovemaking.com/2015/12/23/inline-caching-in-mri.html>article on in inline caching in MRI</a>, the global method state is a global serial number that gets incremented whenever class definitions are mutated. The class serial number is a number derived from the class of whichever object is receiving a method call at a specific call site. This can be illustrated by running the following Ruby code (before Ruby 3+, as things work a little differently there):</p>
+<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-ruby data-lang=ruby>p <span style=color:#66d9ef>RubyVM</span><span style=color:#f92672>.</span>stat
+
+<span style=color:#66d9ef>module</span> Kernel
+  <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>monkey_patched_method</span>
+  <span style=color:#66d9ef>end</span>
+<span style=color:#66d9ef>end</span>
+
+p <span style=color:#66d9ef>RubyVM</span><span style=color:#f92672>.</span>stat
+<span style=color:#75715e># Notice that global_method_state is incremented at this point</span>
+
+<span style=color:#66d9ef>class</span> <span style=color:#a6e22e>A</span>
+<span style=color:#66d9ef>end</span>
+
+p <span style=color:#66d9ef>RubyVM</span><span style=color:#f92672>.</span>stat
+<span style=color:#75715e># Class serial will have increased once by now</span>
+
+<span style=color:#66d9ef>class</span> <span style=color:#a6e22e>B</span>
+<span style=color:#66d9ef>end</span>
+
+p <span style=color:#66d9ef>RubyVM</span><span style=color:#f92672>.</span>stat
+<span style=color:#75715e># Class serial will have increased twice by now</span>
+</code></pre></div><p>We should see something like</p>
+<pre tabindex=0><code>{:global_method_state=&gt;133, :global_constant_state=&gt;904, :class_serial=&gt;6329}
+{:global_method_state=&gt;134, :global_constant_state=&gt;904, :class_serial=&gt;6329}
+{:global_method_state=&gt;134, :global_constant_state=&gt;905, :class_serial=&gt;6331}
+{:global_method_state=&gt;134, :global_constant_state=&gt;906, :class_serial=&gt;6333}
+</code></pre><p>Furthermore, Aaron points out that in CRuby (&lt;3.1) the cache is rather limited, storing exactly one key-value pair per <em>call site</em> (code invocation location), and then proceeds to present several situations which are failed by the existing caching mechanism. We see that even when a change to a class is small and localized, the change to global method state and class serials could blow out unrelated caches and slow down performance.</p>
+<h2 id=polymorphic-inline-caches--dispatch-chains>Polymorphic Inline Caches & Dispatch Chains
+<span>
+<a href=#polymorphic-inline-caches--dispatch-chains><svg viewBox="0 0 28 23" height="100%" width="19" xmlns="http://www.w3.org/2000/svg"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/></svg>
+</a>
+</span>
+</h2><p>This is where <a href=https://en.wikipedia.org/wiki/Inline_caching>(polymorphic) inline caches</a> and <a href=https://chrisseaton.com/truffleruby/pldi15-metaprogramming/pldi15-marr-et-al-zero-overhead-metaprogramming.pdf>dispatch chaining</a> come in.</p>
+<p>Let&rsquo;s start with an inline cache; a small cache included <em>inline</em> (traditionally alongside a call site for a method) that removes the need for redundant method lookup work.</p>
+<video preload=auto width=100% autoplay loop playsinline class=html-video>
+<source src=/posts/dispatch-chains/Inline-Cache.mp4 type=video/mp4>
+<span>Your browser doesn't support embedded videos, but don't worry, you can <a href=/posts/dispatch-chains/Inline-Cache.mp4>download it</a> and watch it with your favorite video player!</span>
+</video>
+<p>The cache described above could be described as monomorphic; it fares best when dealing with call sites that only see one (mono) type used, rather than some small number n > 1 (a polymorphic site) or such a large number of variations that it wouldn&rsquo;t be reasonable to cache and look up entries (a megamorphic site).</p>
+<p>A polymorphic inline cache expands on this by supporting matching on multiple keys (where key is a like a class or name, or <em>generalized</em> to a set of properties such as class <em>and</em> name) to yield multiple call sites.</p>
+<video preload=auto width=100% autoplay loop playsinline class=html-video>
+<source src=/posts/dispatch-chains/Poly-Inline-Cache.mp4 type=video/mp4>
+<span>Your browser doesn't support embedded videos, but don't worry, you can <a href=/posts/dispatch-chains/Poly-Inline-Cache.mp4>download it</a> and watch it with your favorite video player!</span>
+</video>
+<p>A dispatch chain further expands this model of caching & guarding on complex operations by constructing a tree of polymorphic inline caches so that advanced dispatch decisions can be made, in order to support Ruby&rsquo;s complex object model and expressive metaprogramming system. For example, a <code>send</code> can have a tree that first dispatches on</p>
+<ul>
+<li>the method name,</li>
+<li>then on the class,</li>
+<li>then on the bytecode or machine code that represents the returned method, in order to execute code.</li>
+</ul>
+<video preload=auto width=100% autoplay loop playsinline class=html-video>
+<source src=/posts/dispatch-chains/Dispatch-Chain-Sideways-tree.mp4 type=video/mp4>
+<span>Your browser doesn't support embedded videos, but don't worry, you can <a href=/posts/dispatch-chains/Dispatch-Chain-Sideways-tree.mp4>download it</a> and watch it with your favorite video player!</span>
+</video>
+<p>However, a notable downside of said tree model is that memory use from constructing caches can quickly expand as the tree gets wider and wider at subsequent levels of branching decisions.</p>
+<p>TruffleRuby further develops on this idea by constructing a series of decision trees, with the output of each (polymorphic cache) going as input to the next. This means that if one decision tree produces the same value from multiple branches, the next decision tree sees them as the same value, instead of having a new copy of the tree (and all potential decisions cascading from that point) for the repeated values.</p>
+<p>&mldr;</p>
+<video preload=auto width=100% autoplay loop playsinline class=html-video>
+<source src=/posts/dispatch-chains/Dispatch-Chain-Sideways-tree-with-duplicates.mp4 type=video/mp4>
+<span>Your browser doesn't support embedded videos, but don't worry, you can <a href=/posts/dispatch-chains/Dispatch-Chain-Sideways-tree-with-duplicates.mp4>download it</a> and watch it with your favorite video player!</span>
+</video>
+<p>This is particularly useful becuase it means that we aren&rsquo;t as afraid to add more levels of decision trees and granular caches, because memory use isn&rsquo;t expected to increase exponentially. As a result, rather than having one PIC responsible for the caching of a complex process (such as method invocation), a dispatch chain is made up of several PICs with separate concerns and unique cache keys. This both improves the likelihood of breaking down a previously mega/poly site to a poly/mono site and mitigates the consequences of having a megamorphic site&rsquo;s cache blowout cascade through the entire chain of operations being performed.</p>
+<p>Let&rsquo;s explore how the use of dispatch chains speeds up method invocation in TruffleRuby, a high-speed JIT-compiled Ruby on top of the GraalVM and the Truffle DSL.</p>
+<h2 id=trufflerubys-method-invocation-mechanism>TruffleRuby’s Method Invocation Mechanism
+<span>
+<a href=#trufflerubys-method-invocation-mechanism><svg viewBox="0 0 28 23" height="100%" width="19" xmlns="http://www.w3.org/2000/svg"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/></svg>
+</a>
+</span>
+</h2><blockquote>
+<p>First, a quick disclaimer; TruffleRuby makes heavy use of indirection and abstraction within its codebase, which can detract from the exploratory process and overwhelm readers. I’ve simplified and hand-waved away details that aren’t pertinent, but have linked to the source code for the curious.</p>
+</blockquote>
+<p>Let&rsquo;s kick off the method invocation pipeline via</p>
+<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-ruby data-lang=ruby><span style=color:#75715e># Object o</span>
+o<span style=color:#f92672>.</span>send <span style=color:#e6db74>:foo_method</span>
+o<span style=color:#f92672>.</span>foo_method
+</code></pre></div><p>This will kick off the method invocation process via a <a href=https://github.com/oracle/truffleruby/blob/e2f62b89b80cf1d9334dca4d31ef8e379a8712c5/src/main/java/org/truffleruby/core/basicobject/BasicObjectNodes.java#L584-L595>SendNode</a>, which defers to several other nodes for supporting functionality. Like all Truffle DSL languages, TruffleRuby uses nodes and an AST for its intermediate representation.</p>
+<p>Within the send node, we defer to an instantiated-and-stored <a href=https://github.com/oracle/truffleruby/blob/f9ab0cf8b658bdb6b8a68880556c0b072a2e11a1/src/main/java/org/truffleruby/language/dispatch/DispatchNode.java>DispatchNode</a> responsible for handling lookup and subsequent execution from a call site effectively.</p>
+<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-java data-lang=java><span style=color:#66d9ef>protected</span> <span style=color:#a6e22e>DispatchNode</span><span style=color:#f92672>(</span>
+        MetaClassNode metaclassNode<span style=color:#f92672>,</span>
+        LookupMethodNode methodLookup<span style=color:#f92672>,</span>
+        CallInternalMethodNode callNode<span style=color:#f92672>)</span> <span style=color:#f92672>{</span>
+    <span style=color:#66d9ef>this</span><span style=color:#f92672>.</span><span style=color:#a6e22e>metaclassNode</span> <span style=color:#f92672>=</span> metaclassNode<span style=color:#f92672>;</span>
+    <span style=color:#66d9ef>this</span><span style=color:#f92672>.</span><span style=color:#a6e22e>methodLookup</span> <span style=color:#f92672>=</span> methodLookup<span style=color:#f92672>;</span>
+    <span style=color:#66d9ef>this</span><span style=color:#f92672>.</span><span style=color:#a6e22e>callNode</span> <span style=color:#f92672>=</span> callNode<span style=color:#f92672>;</span>
+<span style=color:#f92672>}</span>
+</code></pre></div><p>Among other things, the dispatch node contains a <a href=https://github.com/oracle/truffleruby/blob/75d3da3737ff43c906086aaaf349b09360b10bda/src/main/java/org/truffleruby/language/methods/LookupMethodNode.java>LookupMethodNode</a> and <a href=https://github.com/oracle/truffleruby/blob/83e0079d6f9edc96a252a59d794cd1b6af8d7ca3/src/main/java/org/truffleruby/language/methods/CallInternalMethodNode.java>CallInternalMethodNode</a>, separating the mechanisms responsible for retrieving a method on a class and calling it, respectively.</p>
+<p>Here is what this part of the AST &ldquo;looks&rdquo; like:
+<img src=NodeHierarchy.svg alt></p>
+<p>Let’s explore <code>LookupMethodNode</code> first:</p>
+<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-ruby data-lang=ruby><span style=color:#66d9ef>class</span> <span style=color:#a6e22e>LookupMethodNode</span>
+
+    cache <span style=color:#e6db74>:meta_class</span>, <span style=color:#e6db74>:name</span>
+    cache <span style=color:#e6db74>&#34;lookup_method(cached_meta_class, cached_name)&#34;</span>, <span style=color:#e6db74>as</span>: <span style=color:#e6db74>:method_lookup_result</span>
+    limit <span style=color:#e6db74>:get_cache_limit</span>
+    guard_on <span style=color:#e6db74>:cached_meta_class</span>, <span style=color:#e6db74>:cached_name</span>
+    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>lookup_method_cached</span>(meta_class, name)
+        <span style=color:#66d9ef>return</span> method_lookup_result
+    <span style=color:#66d9ef>end</span>
+<span style=color:#66d9ef>end</span>
+</code></pre></div><p>Simplified from:</p>
+<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-java data-lang=java><span style=color:#a6e22e>@Specialization</span><span style=color:#f92672>(</span>
+        guards <span style=color:#f92672>=</span> <span style=color:#f92672>{</span>
+                <span style=color:#e6db74>&#34;isSingleContext()&#34;</span><span style=color:#f92672>,</span>
+                <span style=color:#e6db74>&#34;metaClass == cachedMetaClass&#34;</span><span style=color:#f92672>,</span>
+                <span style=color:#e6db74>&#34;name == cachedName&#34;</span><span style=color:#f92672>,</span>
+                <span style=color:#e6db74>&#34;config == cachedConfig&#34;</span> <span style=color:#f92672>},</span>
+        assumptions <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;methodLookupResult.getAssumptions()&#34;</span><span style=color:#f92672>,</span>
+        limit <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;getCacheLimit()&#34;</span><span style=color:#f92672>)</span>
+<span style=color:#66d9ef>protected</span> InternalMethod <span style=color:#a6e22e>lookupMethodCached</span><span style=color:#f92672>(</span>
+        Frame frame<span style=color:#f92672>,</span> RubyClass metaClass<span style=color:#f92672>,</span> String name<span style=color:#f92672>,</span> DispatchConfiguration config<span style=color:#f92672>,</span>
+        <span style=color:#a6e22e>@Cached</span><span style=color:#f92672>(</span><span style=color:#e6db74>&#34;metaClass&#34;</span><span style=color:#f92672>)</span> RubyClass cachedMetaClass<span style=color:#f92672>,</span>
+        <span style=color:#a6e22e>@Cached</span><span style=color:#f92672>(</span><span style=color:#e6db74>&#34;name&#34;</span><span style=color:#f92672>)</span> String cachedName<span style=color:#f92672>,</span>
+        <span style=color:#a6e22e>@Cached</span><span style=color:#f92672>(</span><span style=color:#e6db74>&#34;config&#34;</span><span style=color:#f92672>)</span> DispatchConfiguration cachedConfig<span style=color:#f92672>,</span>
+        <span style=color:#a6e22e>@Cached</span><span style=color:#f92672>(</span><span style=color:#e6db74>&#34;lookupCached(getContext(), frame, cachedMetaClass, cachedName, config)&#34;</span><span style=color:#f92672>)</span> MethodLookupResult methodLookupResult<span style=color:#f92672>)</span> <span style=color:#f92672>{</span>
+
+    <span style=color:#66d9ef>return</span> methodLookupResult<span style=color:#f92672>.</span><span style=color:#a6e22e>getMethod</span><span style=color:#f92672>();</span>
+<span style=color:#f92672>}</span>
+</code></pre></div><p>We&rsquo;ve encountered our first generalized PIC in the dispatch chain! Caching on the <code>metaClass</code> (essentially the class of the object) and the <code>name</code> of the method being passed in, this node takes a Ruby class and method name to look up, and pops out an <code>InternalMethod</code> object. Note that this stores up to <code>getCacheLimit()</code> entries, which is why it is a <em>poly</em> morphic cache.</p>
+<p>Next, let&rsquo;s examine <code>CallInternalMethodNode</code>, which is passed the lookup node’s <code>InternalMethod</code> result:</p>
+<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-java data-lang=java><span style=color:#66d9ef>final</span> InternalMethod method <span style=color:#f92672>=</span> lookupMethodNode<span style=color:#f92672>.</span><span style=color:#a6e22e>execute</span><span style=color:#f92672>(</span>frame<span style=color:#f92672>,</span> metaclass<span style=color:#f92672>,</span> methodName<span style=color:#f92672>,</span> config<span style=color:#f92672>);</span>
+
+<span style=color:#75715e>/*
+</span><span style=color:#75715e> * Cut out implementationdetails
+</span><span style=color:#75715e> */</span>
+
+<span style=color:#66d9ef>return</span> callNode<span style=color:#f92672>.</span><span style=color:#a6e22e>execute</span><span style=color:#f92672>(</span>frame<span style=color:#f92672>,</span> method<span style=color:#f92672>,</span> receiver<span style=color:#f92672>,</span> rubyArgs<span style=color:#f92672>,</span> literalCallNode<span style=color:#f92672>);</span>
+</code></pre></div><p>Simplified once again:</p>
+<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-ruby data-lang=ruby><span style=color:#66d9ef>class</span> <span style=color:#a6e22e>CallInternalMethodNode</span>
+
+    cache <span style=color:#e6db74>:method</span>
+    cache <span style=color:#e6db74>&#34;method.get_call_target&#34;</span>, <span style=color:#e6db74>as</span>: <span style=color:#e6db74>:call_target</span>
+    cache <span style=color:#e6db74>&#34;create_call(cached_method.get_name, cached_call_target)&#34;</span>, <span style=color:#e6db74>as</span>: <span style=color:#e6db74>:call_node</span>
+    guard_on <span style=color:#e6db74>:cached_call_target</span>, <span style=color:#e6db74>&#34;!cached_method.always_inlined?&#34;</span>
+    limit <span style=color:#e6db74>:get_cache_limit</span>
+    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>call_cached</span>(method, <span style=color:#f92672>*</span>method_args)
+        <span style=color:#75715e># Note how the call node is generated and cached as part of the cache entry from a cached method and cached call target.</span>
+        <span style=color:#75715e># As long as the guards are not violated, all of this is stored in the poly cache and invoked speedily.</span>
+        call_node<span style=color:#f92672>.</span>call(call_target, method_args)
+    <span style=color:#66d9ef>end</span>
+<span style=color:#66d9ef>end</span>
+</code></pre></div><p>From:</p>
+<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-java data-lang=java><span style=color:#a6e22e>@Specialization</span><span style=color:#f92672>(</span>
+        guards <span style=color:#f92672>=</span> <span style=color:#f92672>{</span>
+                <span style=color:#e6db74>&#34;isSingleContext()&#34;</span><span style=color:#f92672>,</span>
+                <span style=color:#e6db74>&#34;method.getCallTarget() == cachedCallTarget&#34;</span><span style=color:#f92672>,</span>
+                <span style=color:#e6db74>&#34;!cachedMethod.alwaysInlined()&#34;</span> <span style=color:#f92672>},</span>
+        assumptions <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;getMethodAssumption(cachedMethod)&#34;</span><span style=color:#f92672>,</span> <span style=color:#75715e>// to remove the inline cache entry when the method is redefined or removed
+</span><span style=color:#75715e></span>        limit <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;getCacheLimit()&#34;</span><span style=color:#f92672>)</span>
+<span style=color:#66d9ef>protected</span> Object <span style=color:#a6e22e>callCached</span><span style=color:#f92672>(</span>
+        InternalMethod method<span style=color:#f92672>,</span> Object receiver<span style=color:#f92672>,</span> Object<span style=color:#f92672>[]</span> rubyArgs<span style=color:#f92672>,</span> LiteralCallNode literalCallNode<span style=color:#f92672>,</span>
+        <span style=color:#a6e22e>@Cached</span><span style=color:#f92672>(</span><span style=color:#e6db74>&#34;method.getCallTarget()&#34;</span><span style=color:#f92672>)</span> RootCallTarget cachedCallTarget<span style=color:#f92672>,</span>
+        <span style=color:#a6e22e>@Cached</span><span style=color:#f92672>(</span><span style=color:#e6db74>&#34;method&#34;</span><span style=color:#f92672>)</span> InternalMethod cachedMethod<span style=color:#f92672>,</span>
+        <span style=color:#a6e22e>@Cached</span><span style=color:#f92672>(</span><span style=color:#e6db74>&#34;createCall(cachedMethod.getName(), cachedCallTarget)&#34;</span><span style=color:#f92672>)</span> DirectCallNode callNode<span style=color:#f92672>)</span> <span style=color:#f92672>{</span>
+    <span style=color:#66d9ef>if</span> <span style=color:#f92672>(</span>literalCallNode <span style=color:#f92672>!=</span> <span style=color:#66d9ef>null</span><span style=color:#f92672>)</span> <span style=color:#f92672>{</span>
+        literalCallNode<span style=color:#f92672>.</span><span style=color:#a6e22e>copyRuby2KeywordsHash</span><span style=color:#f92672>(</span>rubyArgs<span style=color:#f92672>,</span> cachedMethod<span style=color:#f92672>.</span><span style=color:#a6e22e>getSharedMethodInfo</span><span style=color:#f92672>());</span>
+    <span style=color:#f92672>}</span>
+
+    <span style=color:#66d9ef>return</span> callNode<span style=color:#f92672>.</span><span style=color:#a6e22e>call</span><span style=color:#f92672>(</span>RubyArguments<span style=color:#f92672>.</span><span style=color:#a6e22e>repackForCall</span><span style=color:#f92672>(</span>rubyArgs<span style=color:#f92672>));</span>
+<span style=color:#f92672>}</span>
+</code></pre></div><p>As a result, we&rsquo;re able to sequence these PICs so that the processes of converting a call site to a method lookup and the method execution are cached separately & based on unique properties relevant to the data flow at each process.</p>
+<h2 id=what-can-we-take-away-from-it-all>What can we take away from it all?
+<span>
+<a href=#what-can-we-take-away-from-it-all><svg viewBox="0 0 28 23" height="100%" width="19" xmlns="http://www.w3.org/2000/svg"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/></svg>
+</a>
+</span>
+</h2><p>TruffleRuby uses this advanced and complex/compound design of inline caching because it tackles some of the dynamic nature of Ruby. For example, complex class hierarchies methods that are aliased with different names can result in a call to the same code, and our technique means we can de-duplicate that call and ensure speedy execution of interpreted <em>and</em> JITted code.</p>
+<p>Currently, we&rsquo;re using these techniques to optimise conventional Ruby and especially metaprogramming in powerful ways. We think we can use their power and flexibility to address other Ruby idioms that aren&rsquo;t currently well-optimised, such as extensive use of singletons to define per-object methods. At the moment these trip up the VM as they cause the first layer of caching to become megamorphic. Our ongoing and future work is look at adding another level of indirection and further specializing on top of the dispatch system to accomodate for singleton classes, ensuring that idiomatic & expressive Ruby continues to be performant.</p>
+<h2 id=special-thanks>Special Thanks
+<span>
+<a href=#special-thanks><svg viewBox="0 0 28 23" height="100%" width="19" xmlns="http://www.w3.org/2000/svg"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" fill="none" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2"/></svg>
+</a>
+</span>
+</h2><p>Thanks to <a href=https://chrisseaton.com/>Chris Seaton</a>, <a href=https://nirvdrum.com/>Kevin Menard</a>, <a href=https://kddnewton.com/>Kevin Newton</a>, and <a href=https://twitter.com/Kaan0zkan>Kaan Ozkan</a> for looking over and providing feedback on early drafts of mine, and to <a href=https://tenderlovemaking.com/>Aaron Patterson</a> for the MRI caching crash course.</p>
+</div>
+<div class=post-info>
+<div class="post-date dt-published">2022-07-21</div>
+<a class="post-hidden-url u-url" href=https://MattAlp.github.io/posts/dispatch-chains/>https://MattAlp.github.io/posts/dispatch-chains/</a>
+<a href=https://MattAlp.github.io class="p-name p-author post-hidden-author h-card" rel=me></a>
+<div class=post-taxonomies>
+</div>
+</div>
+</article>
+</main>
+<footer class=common-footer>
+<div class=common-footer-bottom>
+<div class=copyright>
+<p>© 2022<br>
+Powered by <a target=_blank rel="noopener noreferrer" href=https://gohugo.io/>Hugo</a>, theme <a target=_blank rel="noopener noreferrer" href=https://github.com/mitrichius/hugo-theme-anubis>Anubis</a>.<br>
+</p>
+</div>
+<script>const STORAGE_KEY='user-color-scheme',defaultTheme="light-without-switcher";let currentTheme,switchButton,autoDefinedScheme=window.matchMedia('(prefers-color-scheme: dark)');const autoChangeScheme=a=>{currentTheme=a.matches?'dark':'light',document.documentElement.setAttribute('data-theme',currentTheme),changeButtonText()};document.addEventListener('DOMContentLoaded',function(){switchButton=document.querySelector('.theme-switcher'),currentTheme=detectCurrentScheme(),currentTheme=='dark'&&document.documentElement.setAttribute('data-theme','dark'),currentTheme=='auto'&&(autoChangeScheme(autoDefinedScheme),autoDefinedScheme.addListener(autoChangeScheme)),switchButton&&(changeButtonText(),switchButton.addEventListener('click',switchTheme,!1)),showContent()});function detectCurrentScheme(){return localStorage.getItem(STORAGE_KEY)?localStorage.getItem(STORAGE_KEY):defaultTheme?defaultTheme:window.matchMedia?window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light':'light'}function changeButtonText(){switchButton&&(switchButton.textContent=currentTheme=='dark'?"Light theme":"Dark theme")}function switchTheme(a){currentTheme=='dark'?(localStorage.setItem(STORAGE_KEY,'light'),document.documentElement.setAttribute('data-theme','light'),currentTheme='light'):(localStorage.setItem(STORAGE_KEY,'dark'),document.documentElement.setAttribute('data-theme','dark'),currentTheme='dark'),changeButtonText()}function showContent(){document.body.style.visibility='visible',document.body.style.opacity=1}</script>
+</div>
+<p class="h-card vcard">
+<a href=https://MattAlp.github.io class="p-name u-url url fn" rel=me></a>
+</p>
+</footer>
+</div>
+</body>
+</html>
