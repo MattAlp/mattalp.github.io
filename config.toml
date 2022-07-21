@@ -1,4 +1,4 @@
 baseURL = 'https://MattAlp.github.io'
 languageCode = 'en-us'
 title = 'Matthew Alp'
-theme = "ananke"
+theme = ["hugo-video", "ananke"]
