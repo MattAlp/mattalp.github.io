@@ -6,18 +6,18 @@
 <meta name=referrer content="no-referrer-when-downgrade">
 <title>On Dispatch Chains - Matthew Alp</title>
 <meta name=description content="Intro     In Ruby, practically everything is an object- an instance of a class containing some data, interacting through sending or receiving messages (via method calls). Unlike statically typed languages, wherein one knows at compile time what the set of messages an object can respond to (i.e. what methods are defined on a class), Ruby provides an extensive suite of ways of extending and modifying this set at run time.">
-<link rel=icon type=image/x-icon href=https://mattalp.com/favicon.ico>
-<link rel=apple-touch-icon-precomposed href=https://mattalp.com/favicon.png>
+<link rel=icon type=image/x-icon href=favicon.ico>
+<link rel=apple-touch-icon-precomposed href=favicon.png>
 <style>body{visibility:hidden;opacity:0}</style>
 <noscript>
 <style>body{visibility:visible;opacity:1}</style>
 </noscript>
-<link rel=stylesheet href=https://mattalp.com/css/style.min.c6a5c56d82abc1aa3a1925bf0b67884906e878e4e5bfb5af069b0a3e35e32569.css integrity="sha256-xqXFbYKrwao6GSW/C2eISQboeOTlv7WvBpsKPjXjJWk=">
-<script src=https://mattalp.com/js/script.min.510c781c39dbb21b4c76d85c82e2bdf4689220adbb7cd61e49e9d293e442fb42.js type=text/javascript integrity="sha256-UQx4HDnbshtMdthcguK99GiSIK27fNYeSenSk+RC+0I="></script>
+<link rel=stylesheet href=../../css/style.min.c6a5c56d82abc1aa3a1925bf0b67884906e878e4e5bfb5af069b0a3e35e32569.css integrity="sha256-xqXFbYKrwao6GSW/C2eISQboeOTlv7WvBpsKPjXjJWk=">
+<script src=../../js/script.min.510c781c39dbb21b4c76d85c82e2bdf4689220adbb7cd61e49e9d293e442fb42.js type=text/javascript integrity="sha256-UQx4HDnbshtMdthcguK99GiSIK27fNYeSenSk+RC+0I="></script>
 <meta property="og:title" content="On Dispatch Chains">
 <meta property="og:description" content="Intro     In Ruby, practically everything is an object- an instance of a class containing some data, interacting through sending or receiving messages (via method calls). Unlike statically typed languages, wherein one knows at compile time what the set of messages an object can respond to (i.e. what methods are defined on a class), Ruby provides an extensive suite of ways of extending and modifying this set at run time.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://mattalp.com/posts/dispatch-chains/"><meta property="article:section" content="posts">
+<meta property="og:url" content="/posts/dispatch-chains/"><meta property="article:section" content="posts">
 <meta property="article:published_time" content="2022-07-21T10:53:09-04:00">
 <meta property="article:modified_time" content="2022-07-21T10:53:09-04:00">
 <meta name=twitter:card content="summary">
@@ -30,14 +30,14 @@
 <header class=common-header>
 <div class=header-top>
 <h1 class=site-title>
-<a href=/>Matthew Alp</a>
+<a href=../../>Matthew Alp</a>
 </h1>
 <ul class=social-icons>
 </ul>
 </div>
 <nav>
-<a href=https://mattalp.com/about title>About</a>
-<a href=https://mattalp.com/posts/ title>Posts</a>
+<a href=../../about title>About</a>
+<a href=../../posts/ title>Posts</a>
 </nav>
 </header>
 <main id=main tabindex=-1>
@@ -91,14 +91,14 @@ p <span style=color:#66d9ef>RubyVM</span><span style=color:#f92672>.</span>stat
 </h2><p>This is where <a href=https://en.wikipedia.org/wiki/Inline_caching>(polymorphic) inline caches</a> and <a href=https://chrisseaton.com/truffleruby/pldi15-metaprogramming/pldi15-marr-et-al-zero-overhead-metaprogramming.pdf>dispatch chaining</a> come in.</p>
 <p>Let&rsquo;s start with an inline cache; a small cache included <em>inline</em> (traditionally alongside a call site for a method) that removes the need for redundant method lookup work.</p>
 <video preload=auto width=100% autoplay loop muted playsinline class=html-video>
-<source src=/posts/dispatch-chains/Inline-Cache.mp4 type=video/mp4>
-<span>Your browser doesn't support embedded videos, but don't worry, you can <a href=/posts/dispatch-chains/Inline-Cache.mp4>download it</a> and watch it with your favorite video player!</span>
+<source src=../../posts/dispatch-chains/Inline-Cache.mp4 type=video/mp4>
+<span>Your browser doesn't support embedded videos, but don't worry, you can <a href=../../posts/dispatch-chains/Inline-Cache.mp4>download it</a> and watch it with your favorite video player!</span>
 </video>
 <p>The cache described above could be described as monomorphic; it fares best when dealing with call sites that only see one (mono) type used, rather than some small number n > 1 (a polymorphic site) or such a large number of variations that it wouldn&rsquo;t be reasonable to cache and look up entries (a megamorphic site).</p>
 <p>A polymorphic inline cache expands on this by supporting matching on multiple keys (where key is a like a class or name, or <em>generalized</em> to a set of properties such as class <em>and</em> name) to yield multiple call sites.</p>
 <video preload=auto width=100% autoplay loop muted playsinline class=html-video>
-<source src=/posts/dispatch-chains/Poly-Inline-Cache.mp4 type=video/mp4>
-<span>Your browser doesn't support embedded videos, but don't worry, you can <a href=/posts/dispatch-chains/Poly-Inline-Cache.mp4>download it</a> and watch it with your favorite video player!</span>
+<source src=../../posts/dispatch-chains/Poly-Inline-Cache.mp4 type=video/mp4>
+<span>Your browser doesn't support embedded videos, but don't worry, you can <a href=../../posts/dispatch-chains/Poly-Inline-Cache.mp4>download it</a> and watch it with your favorite video player!</span>
 </video>
 <p>A dispatch chain further expands this model of caching & guarding on complex operations by constructing a tree of polymorphic inline caches so that advanced dispatch decisions can be made, in order to support Ruby&rsquo;s complex object model and expressive metaprogramming system. For example, a <code>send</code> can have a tree that first dispatches on</p>
 <ul>
@@ -107,15 +107,15 @@ p <span style=color:#66d9ef>RubyVM</span><span style=color:#f92672>.</span>stat
 <li>then on the bytecode or machine code that represents the returned method, in order to execute code.</li>
 </ul>
 <video preload=auto width=100% autoplay loop muted playsinline class=html-video>
-<source src=/posts/dispatch-chains/Dispatch-Chain-Sideways-tree.mp4 type=video/mp4>
-<span>Your browser doesn't support embedded videos, but don't worry, you can <a href=/posts/dispatch-chains/Dispatch-Chain-Sideways-tree.mp4>download it</a> and watch it with your favorite video player!</span>
+<source src=../../posts/dispatch-chains/Dispatch-Chain-Sideways-tree.mp4 type=video/mp4>
+<span>Your browser doesn't support embedded videos, but don't worry, you can <a href=../../posts/dispatch-chains/Dispatch-Chain-Sideways-tree.mp4>download it</a> and watch it with your favorite video player!</span>
 </video>
 <p>However, a notable downside of said tree model is that memory use from constructing caches can quickly expand as the tree gets wider and wider at subsequent levels of branching decisions.</p>
 <p>TruffleRuby further develops on this idea by constructing a series of decision trees, with the output of each (polymorphic cache) going as input to the next. This means that if one decision tree produces the same value from multiple branches, the next decision tree sees them as the same value, instead of having a new copy of the tree (and all potential decisions cascading from that point) for the repeated values.</p>
 <p>&mldr;</p>
 <video preload=auto width=100% autoplay loop muted playsinline class=html-video>
-<source src=/posts/dispatch-chains/Dispatch-Chain-Sideways-tree-with-duplicates.mp4 type=video/mp4>
-<span>Your browser doesn't support embedded videos, but don't worry, you can <a href=/posts/dispatch-chains/Dispatch-Chain-Sideways-tree-with-duplicates.mp4>download it</a> and watch it with your favorite video player!</span>
+<source src=../../posts/dispatch-chains/Dispatch-Chain-Sideways-tree-with-duplicates.mp4 type=video/mp4>
+<span>Your browser doesn't support embedded videos, but don't worry, you can <a href=../../posts/dispatch-chains/Dispatch-Chain-Sideways-tree-with-duplicates.mp4>download it</a> and watch it with your favorite video player!</span>
 </video>
 <p>This is particularly useful because it means that we aren&rsquo;t as afraid to add more levels of decision trees and granular caches as memory use isn&rsquo;t expected to increase exponentially. As a result, rather than having one PIC responsible for the caching of a complex process (such as method invocation), a dispatch chain is made up of several PICs with separate concerns and unique cache keys. This both improves the likelihood of breaking down a previously mega/poly site to a poly/mono site and mitigates the consequences of having a megamorphic site&rsquo;s cache blowout cascade through the entire chain of operations being performed.</p>
 <p>Let&rsquo;s explore how the use of dispatch chains speeds up method invocation in TruffleRuby, a high-speed JIT-compiled Ruby on top of the GraalVM and the Truffle DSL.</p>
@@ -232,8 +232,8 @@ o<span style=color:#f92672>.</span>foo_method
 </div>
 <div class=post-info>
 <div class="post-date dt-published">2022-07-21</div>
-<a class="post-hidden-url u-url" href=https://mattalp.com/posts/dispatch-chains/>https://mattalp.com/posts/dispatch-chains/</a>
-<a href=https://mattalp.com class="p-name p-author post-hidden-author h-card" rel=me></a>
+<a class="post-hidden-url u-url" href=../../posts/dispatch-chains/>/posts/dispatch-chains/</a>
+<a href class="p-name p-author post-hidden-author h-card" rel=me></a>
 <div class=post-taxonomies>
 </div>
 </div>
@@ -249,7 +249,7 @@ Powered by <a target=_blank rel="noopener noreferrer" href=https://gohugo.io/>Hu
 <script>const STORAGE_KEY='user-color-scheme',defaultTheme="light-without-switcher";let currentTheme,switchButton,autoDefinedScheme=window.matchMedia('(prefers-color-scheme: dark)');const autoChangeScheme=a=>{currentTheme=a.matches?'dark':'light',document.documentElement.setAttribute('data-theme',currentTheme),changeButtonText()};document.addEventListener('DOMContentLoaded',function(){switchButton=document.querySelector('.theme-switcher'),currentTheme=detectCurrentScheme(),currentTheme=='dark'&&document.documentElement.setAttribute('data-theme','dark'),currentTheme=='auto'&&(autoChangeScheme(autoDefinedScheme),autoDefinedScheme.addListener(autoChangeScheme)),switchButton&&(changeButtonText(),switchButton.addEventListener('click',switchTheme,!1)),showContent()});function detectCurrentScheme(){return localStorage.getItem(STORAGE_KEY)?localStorage.getItem(STORAGE_KEY):defaultTheme?defaultTheme:window.matchMedia?window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light':'light'}function changeButtonText(){switchButton&&(switchButton.textContent=currentTheme=='dark'?"Light theme":"Dark theme")}function switchTheme(a){currentTheme=='dark'?(localStorage.setItem(STORAGE_KEY,'light'),document.documentElement.setAttribute('data-theme','light'),currentTheme='light'):(localStorage.setItem(STORAGE_KEY,'dark'),document.documentElement.setAttribute('data-theme','dark'),currentTheme='dark'),changeButtonText()}function showContent(){document.body.style.visibility='visible',document.body.style.opacity=1}</script>
 </div>
 <p class="h-card vcard">
-<a href=https://mattalp.com class="p-name u-url url fn" rel=me></a>
+<a href='class="p-name' u-url url fn" rel=me></a>
 </p>
 </footer>
 </div>
