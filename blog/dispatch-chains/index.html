@@ -111,7 +111,7 @@ p RubyVM.stat
 <span>Your browser doesn't support embedded videos, but don't worry, you can <a href=../../blog/dispatch-chains/Inline-Cache.mp4>download it</a> and watch it with your favorite video player!</span>
 </video>
 <p>The cache described above could be described as monomorphic; it fares best when dealing with call sites that only see one (mono) type used, rather than some small number n > 1 (a polymorphic site) or such a large number of variations that it wouldn&rsquo;t be reasonable to cache and look up entries (a megamorphic site).</p>
-<p>A polymorphic inline cache expands on this by supporting matching on multiple keys (where key is a like a class or name, or <em>generalized</em> to a set of properties such as class <em>and</em> name) to yield multiple call sites.</p>
+<p>A polymorphic inline cache (PIC) expands on this by supporting matching on multiple keys (where key is a like a class or name, or <em>generalized</em> to a set of properties such as class <em>and</em> name) to yield multiple call sites.</p>
 <video preload=auto width=100% autoplay loop muted playsinline class=html-video>
 <source src=../../blog/dispatch-chains/Poly-Inline-Cache.mp4 type=video/mp4>
 <span>Your browser doesn't support embedded videos, but don't worry, you can <a href=../../blog/dispatch-chains/Poly-Inline-Cache.mp4>download it</a> and watch it with your favorite video player!</span>
