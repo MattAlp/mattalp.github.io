@@ -57,7 +57,7 @@ Let's start with an inline cache; a small cache included *inline* (traditionally
 The cache described above could be described as monomorphic; it fares best when dealing with call sites that only see one (mono) type used, rather than some small number n > 1 (a polymorphic site) or such a large number of variations that it wouldn't be reasonable to cache and look up entries (a megamorphic site).
 
 
-A polymorphic inline cache expands on this by supporting matching on multiple keys (where key is a like a class or name, or _generalized_ to a set of properties such as class *and* name) to yield multiple call sites.
+A polymorphic inline cache (PIC) expands on this by supporting matching on multiple keys (where key is a like a class or name, or _generalized_ to a set of properties such as class *and* name) to yield multiple call sites.
 
 {{< video src="Poly-Inline-Cache" controls="false" autoplay="true" loop="true" muted="true">}}
 
