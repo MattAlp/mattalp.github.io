@@ -75,7 +75,7 @@ Matthew Alp
 <h2 id=intro>Intro</h2>
 <p>In Ruby, practically everything is an object- an instance of a class containing some data, interacting through sending or receiving messages (via method calls). Unlike statically typed languages, wherein one knows at compile time what the set of messages an object can respond to (i.e. what methods are defined on a class), Ruby provides an extensive suite of ways of extending and modifying this set at run time.</p>
 <p>As a consequence of this paradigm, Ruby must look up the method instructions you wish to invoke every time that you request to call a method by name, which is a costly operation involving traversing the object’s ancestry to ascertain if and where the method itself can be executed from. In the interest of performance, this process is sped up by caching the results of these lookups and removing the need for redundant work.</p>
-<p>In most implementations of Ruby, this is done via inline caching. Historically, this is done in CRuby/MRI through the use of a “global method state (number)” and a “class serial number”. As shown in Aaron Patterson&rsquo;s <a href=https://tenderlovemaking.com/2015/12/23/inline-caching-in-mri.html>article on in inline caching in MRI</a>, the global method state is a global serial number that gets incremented whenever class definitions are mutated. The class serial number is a number derived from the class of whichever object is receiving a method call at a specific call site. This can be illustrated by running the following Ruby code (before Ruby 3+, as things work a little differently there):</p>
+<p>In most implementations of Ruby, this is done via <a href=https://en.wikipedia.org/wiki/Inline_caching>inline caching</a>, a method lookup optimization originating in Smalltalk. Historically, this is done in CRuby/MRI through the use of a “global method number” and a “class serial number”. As shown in Aaron Patterson&rsquo;s <a href=https://tenderlovemaking.com/2015/12/23/inline-caching-in-mri.html>article on in inline caching in MRI</a>, the global method state is a global serial number that gets incremented whenever class definitions are mutated. The class serial number is a number derived from the class of whichever object is receiving a method call at a specific call site. This can be illustrated by running the following Ruby code (before Ruby 3+, as things work a little differently there):</p>
 <pre tabindex=0><code>p RubyVM.stat
 
 module Kernel
@@ -106,13 +106,13 @@ p RubyVM.stat
 <h2 id=polymorphic-inline-caches--dispatch-chains>Polymorphic Inline Caches & Dispatch Chains</h2>
 <p>This is where <a href=https://en.wikipedia.org/wiki/Inline_caching>(polymorphic) inline caches</a> and <a href=https://chrisseaton.com/truffleruby/pldi15-metaprogramming/pldi15-marr-et-al-zero-overhead-metaprogramming.pdf>dispatch chaining</a> come in.</p>
 <p>Let&rsquo;s start with an inline cache; a small cache included <em>inline</em> (traditionally alongside a call site for a method) that removes the need for redundant method lookup work.</p>
-<video preload=auto width=100% autoplay loop muted playsinline class=html-video>
-<source src=../../blog/dispatch-chains/Inline-Cache.mp4 type=video/mp4>
-<span>Your browser doesn't support embedded videos, but don't worry, you can <a href=../../blog/dispatch-chains/Inline-Cache.mp4>download it</a> and watch it with your favorite video player!</span>
+<video controls preload=auto width=100% loop muted playsinline class=html-video>
+<source src=../../blog/dispatch-chains/Inline-Cache-with-Method-name.mp4 type=video/mp4>
+<span>Your browser doesn't support embedded videos, but don't worry, you can <a href=../../blog/dispatch-chains/Inline-Cache-with-Method-name.mp4>download it</a> and watch it with your favorite video player!</span>
 </video>
 <p>The cache described above could be described as monomorphic; it fares best when dealing with call sites that only see one (mono) type used, rather than some small number n > 1 (a polymorphic site) or such a large number of variations that it wouldn&rsquo;t be reasonable to cache and look up entries (a megamorphic site).</p>
 <p>A polymorphic inline cache (PIC) expands on this by supporting matching on multiple keys (where key is a like a class or name, or <em>generalized</em> to a set of properties such as class <em>and</em> name) to yield multiple call sites.</p>
-<video preload=auto width=100% autoplay loop muted playsinline class=html-video>
+<video controls preload=auto width=100% loop muted playsinline class=html-video>
 <source src=../../blog/dispatch-chains/Poly-Inline-Cache.mp4 type=video/mp4>
 <span>Your browser doesn't support embedded videos, but don't worry, you can <a href=../../blog/dispatch-chains/Poly-Inline-Cache.mp4>download it</a> and watch it with your favorite video player!</span>
 </video>
@@ -122,13 +122,13 @@ p RubyVM.stat
 <li>then on the class,</li>
 <li>then on the bytecode or machine code that represents the returned method, in order to execute code.</li>
 </ul>
-<video preload=auto width=100% autoplay loop muted playsinline class=html-video>
+<video controls preload=auto width=100% loop muted playsinline class=html-video>
 <source src=../../blog/dispatch-chains/Dispatch-Chain-Sideways-tree.mp4 type=video/mp4>
 <span>Your browser doesn't support embedded videos, but don't worry, you can <a href=../../blog/dispatch-chains/Dispatch-Chain-Sideways-tree.mp4>download it</a> and watch it with your favorite video player!</span>
 </video>
 <p>However, a notable downside of said tree model is that memory use from constructing caches can quickly expand as the tree gets wider and wider at subsequent levels of branching decisions.</p>
 <p>TruffleRuby further develops on this idea by constructing a series of decision trees, with the output of each (polymorphic cache) going as input to the next. This means that if one decision tree produces the same value from multiple branches, the next decision tree sees them as the same value, instead of having a new copy of the tree (and all potential decisions cascading from that point) for the repeated values.</p>
-<video preload=auto width=100% autoplay loop muted playsinline class=html-video>
+<video controls preload=auto width=100% loop muted playsinline class=html-video>
 <source src=../../blog/dispatch-chains/Dispatch-Chain-Sideways-tree-with-duplicates.mp4 type=video/mp4>
 <span>Your browser doesn't support embedded videos, but don't worry, you can <a href=../../blog/dispatch-chains/Dispatch-Chain-Sideways-tree-with-duplicates.mp4>download it</a> and watch it with your favorite video player!</span>
 </video>
@@ -142,8 +142,8 @@ p RubyVM.stat
 <pre tabindex=0><code># Object o
 o.send :foo_method
 o.foo_method
-</code></pre><p>This will kick off the method invocation process via a <a href=https://github.com/oracle/truffleruby/blob/e2f62b89b80cf1d9334dca4d31ef8e379a8712c5/src/main/java/org/truffleruby/core/basicobject/BasicObjectNodes.java#L584-L595>SendNode</a>, which defers to several other nodes for supporting functionality. Like all Truffle DSL languages, TruffleRuby uses nodes and an AST for its intermediate representation.</p>
-<p>Within the send node, we defer to an instantiated-and-stored <a href=https://github.com/oracle/truffleruby/blob/f9ab0cf8b658bdb6b8a68880556c0b072a2e11a1/src/main/java/org/truffleruby/language/dispatch/DispatchNode.java>DispatchNode</a> responsible for handling lookup and subsequent execution from a call site effectively.</p>
+</code></pre><p>This will kick off the method invocation process via a <a href=https://github.com/oracle/truffleruby/blob/vm-22.1.0/src/main/java/org/truffleruby/core/basicobject/BasicObjectNodes.java#L584-L595>SendNode</a>, which defers to several other nodes for supporting functionality. Like all Truffle DSL languages, TruffleRuby uses nodes to build a self-optimizing AST interpreter.</p>
+<p>Within the send node, we defer to an instantiated-and-stored <a href=https://github.com/oracle/truffleruby/blob/vm-22.1.0/src/main/java/org/truffleruby/language/dispatch/DispatchNode.java>DispatchNode</a> responsible for handling lookup and subsequent execution from a call site effectively.</p>
 <pre tabindex=0><code>protected DispatchNode(
         MetaClassNode metaclassNode,
         LookupMethodNode methodLookup,
@@ -152,10 +152,10 @@ o.foo_method
     this.methodLookup = methodLookup;
     this.callNode = callNode;
 }
-</code></pre><p>Among other things, the dispatch node contains a <a href=https://github.com/oracle/truffleruby/blob/75d3da3737ff43c906086aaaf349b09360b10bda/src/main/java/org/truffleruby/language/methods/LookupMethodNode.java>LookupMethodNode</a> and <a href=https://github.com/oracle/truffleruby/blob/83e0079d6f9edc96a252a59d794cd1b6af8d7ca3/src/main/java/org/truffleruby/language/methods/CallInternalMethodNode.java>CallInternalMethodNode</a>, separating the mechanisms responsible for retrieving a method on a class and calling it, respectively.</p>
+</code></pre><p>Among other things, the dispatch node contains a <a href=https://github.com/oracle/truffleruby/blob/vm-22.1.0/src/main/java/org/truffleruby/language/methods/LookupMethodNode.java>LookupMethodNode</a> and <a href=https://github.com/oracle/truffleruby/blob/vm-22.1.0/src/main/java/org/truffleruby/language/methods/CallInternalMethodNode.java>CallInternalMethodNode</a>, separating the mechanisms responsible for retrieving a method on a class and calling it, respectively.</p>
 <p>Here is what this part of the AST &ldquo;looks&rdquo; like:
 <img src=NodeHierarchy.svg alt></p>
-<p>Let’s explore <code>LookupMethodNode</code> first:</p>
+<p>Let’s explore <code>LookupMethodNode</code> first (view the original Java + Truffle <a href=https://github.com/oracle/truffleruby/blob/vm-22.1.0/src/main/java/org/truffleruby/language/methods/LookupMethodNode.java#L43-L60>here</a>):</p>
 <pre tabindex=0><code>class LookupMethodNode
 
     cache :meta_class, :name
@@ -165,26 +165,10 @@ o.foo_method
     def lookup_method_cached(meta_class, name)
         return method_lookup_result
     end
-end
-</code></pre><p>Simplified from:</p>
-<pre tabindex=0><code>@Specialization(
-        guards = {
-                &quot;isSingleContext()&quot;,
-                &quot;metaClass == cachedMetaClass&quot;,
-                &quot;name == cachedName&quot;,
-                &quot;config == cachedConfig&quot; },
-        assumptions = &quot;methodLookupResult.getAssumptions()&quot;,
-        limit = &quot;getCacheLimit()&quot;)
-protected InternalMethod lookupMethodCached(
-        Frame frame, RubyClass metaClass, String name, DispatchConfiguration config,
-        @Cached(&quot;metaClass&quot;) RubyClass cachedMetaClass,
-        @Cached(&quot;name&quot;) String cachedName,
-        @Cached(&quot;config&quot;) DispatchConfiguration cachedConfig,
-        @Cached(&quot;lookupCached(getContext(), frame, cachedMetaClass, cachedName, config)&quot;) MethodLookupResult methodLookupResult) {
 
-    return methodLookupResult.getMethod();
-}
-</code></pre><p>We&rsquo;ve encountered our first generalized PIC in the dispatch chain! Caching on the <code>metaClass</code> (essentially the class of the object) and the <code>name</code> of the method being passed in, this node takes a Ruby class and method name to look up, and pops out an <code>InternalMethod</code> object. Note that this stores up to <code>getCacheLimit()</code> entries, which is why it is a <em>poly</em> morphic cache.</p>
+end
+</code></pre>
+<p>We&rsquo;ve encountered our first generalized PIC in the dispatch chain! Caching on the <code>meta_class</code> (essentially the class of the object) and the <code>name</code> of the method being passed in, this node takes a Ruby class and method name to look up, and pops out an <code>InternalMethod</code> object. Note that this stores up to <code>get_cache_limit</code> entries, which is why it is a <em>poly</em> morphic cache.</p>
 <p>Next, let&rsquo;s examine <code>CallInternalMethodNode</code>, which is passed the lookup node’s <code>InternalMethod</code> result:</p>
 <pre tabindex=0><code>final InternalMethod method = lookupMethodNode.execute(frame, metaclass, methodName, config);
 
@@ -193,7 +177,7 @@ protected InternalMethod lookupMethodCached(
  */
 
 return callNode.execute(frame, method, receiver, rubyArgs, literalCallNode);
-</code></pre><p>Simplified once again:</p>
+</code></pre><p>Simplified once again (original <a href=https://github.com/oracle/truffleruby/blob/vm-22.1.0/src/main/java/org/truffleruby/language/methods/CallInternalMethodNode.java#L54-L71>here</a>):</p>
 <pre tabindex=0><code>class CallInternalMethodNode
 
     cache :method
@@ -206,29 +190,12 @@ return callNode.execute(frame, method, receiver, rubyArgs, literalCallNode);
         # As long as the guards are not violated, all of this is stored in the poly cache and invoked speedily.
         call_node.call(call_target, method_args)
     end
-end
-</code></pre><p>From:</p>
-<pre tabindex=0><code>@Specialization(
-        guards = {
-                &quot;isSingleContext()&quot;,
-                &quot;method.getCallTarget() == cachedCallTarget&quot;,
-                &quot;!cachedMethod.alwaysInlined()&quot; },
-        assumptions = &quot;getMethodAssumption(cachedMethod)&quot;, // to remove the inline cache entry when the method is redefined or removed
-        limit = &quot;getCacheLimit()&quot;)
-protected Object callCached(
-        InternalMethod method, Object receiver, Object[] rubyArgs, LiteralCallNode literalCallNode,
-        @Cached(&quot;method.getCallTarget()&quot;) RootCallTarget cachedCallTarget,
-        @Cached(&quot;method&quot;) InternalMethod cachedMethod,
-        @Cached(&quot;createCall(cachedMethod.getName(), cachedCallTarget)&quot;) DirectCallNode callNode) {
-    if (literalCallNode != null) {
-        literalCallNode.copyRuby2KeywordsHash(rubyArgs, cachedMethod.getSharedMethodInfo());
-    }
 
-    return callNode.call(RubyArguments.repackForCall(rubyArgs));
-}
-</code></pre><p>As a result, we&rsquo;re able to sequence these PICs so that the processes of converting a call site to a method lookup and the method execution are cached separately & based on unique properties relevant to the data flow at each process.</p>
+end
+</code></pre>
+<p>As a result, we&rsquo;re able to sequence these PICs so that the processes of converting a call site to a method lookup and the method execution are cached separately & based on unique properties relevant to the data flow at each process.</p>
 <h2 id=what-can-we-take-away-from-it-all>What can we take away from it all?</h2>
-<p>TruffleRuby uses this advanced and complex/compound design of inline caching because it tackles some of the dynamic nature of Ruby. For example, complex class hierarchies methods that are aliased with different names can result in a call to the same code, and our technique means we can de-duplicate that call and ensure speedy execution of interpreted <em>and</em> JITted code.</p>
+<p>TruffleRuby uses this advanced and complex/compound design of inline caching because it tackles some of the dynamic nature of Ruby. For example, complex class hierarchies' methods that are aliased with different names can result in a call to the same code, and our technique means we can de-duplicate that call and ensure speedy execution of interpreted <em>and</em> JITted code.</p>
 <p>Currently, we&rsquo;re using these techniques to optimise conventional Ruby and especially metaprogramming in powerful ways. We think we can use their power and flexibility to address other Ruby idioms that aren&rsquo;t currently well-optimised, such as extensive use of singletons to define per-object methods. At the moment these trip up the VM as they cause the first layer of caching to become megamorphic. Our ongoing work is looking at adding another level of indirection and further specializing on top of the dispatch system to accommodate for singleton classes, ensuring that idiomatic & expressive Ruby continues to be performant.</p>
 <h2 id=special-thanks>Special Thanks</h2>
 <p>Thanks to <a href=https://chrisseaton.com/>Chris Seaton</a>, <a href=https://nirvdrum.com/>Kevin Menard</a>, <a href=https://kddnewton.com/>Kevin Newton</a>, and <a href=https://twitter.com/Kaan0zkan>Kaan Ozkan</a> for looking over and providing feedback on early drafts of mine, and to <a href=https://tenderlovemaking.com/>Aaron Patterson</a> for the MRI caching crash course.</p>
