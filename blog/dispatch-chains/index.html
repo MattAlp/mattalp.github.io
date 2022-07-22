@@ -21,6 +21,7 @@
 <link rel=canonical href=../../blog/dispatch-chains/>
 <link rel=stylesheet href=https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.2/css/bootstrap.min.css integrity="sha512-MoRNloxbStBcD8z3M/2BmnT+rg4IsMxPkXaGh2zD6LGNNFE80W3onsAhRcMAMrSoyWL9xD7Ert0men7vR8LUZg==" crossorigin=anonymous>
 <link rel=stylesheet href=css/custom.css>
+<link rel=stylesheet href=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.2.0/styles/github-gist.min.css integrity="sha512-od7JLoOTxM8w/HSKGzP9Kexc20K9p/M2zxSWsd7H1e4Ctf+8SQFtCWEZnW5u6ul5ehSECa5QmOk9ju2nQMmlVA==" crossorigin=anonymous>
 <link rel="shortcut icon" href=images/favicon.png>
 <link href=../../index.xml rel=alternate type=application/rss+xml title="Matthew Alp">
 </head>
@@ -75,28 +76,28 @@ Matthew Alp
 <p>In Ruby, practically everything is an object- an instance of a class containing some data, interacting through sending or receiving messages (via method calls). Unlike statically typed languages, wherein one knows at compile time what the set of messages an object can respond to (i.e. what methods are defined on a class), Ruby provides an extensive suite of ways of extending and modifying this set at run time.</p>
 <p>As a consequence of this paradigm, Ruby must look up the method instructions you wish to invoke every time that you request to call a method by name, which is a costly operation involving traversing the object’s ancestry to ascertain if and where the method itself can be executed from. In the interest of performance, this process is sped up by caching the results of these lookups and removing the need for redundant work.</p>
 <p>In most implementations of Ruby, this is done via inline caching. Historically, this is done in CRuby/MRI through the use of a “global method state (number)” and a “class serial number”. As shown in Aaron Patterson&rsquo;s <a href=https://tenderlovemaking.com/2015/12/23/inline-caching-in-mri.html>article on in inline caching in MRI</a>, the global method state is a global serial number that gets incremented whenever class definitions are mutated. The class serial number is a number derived from the class of whichever object is receiving a method call at a specific call site. This can be illustrated by running the following Ruby code (before Ruby 3+, as things work a little differently there):</p>
-<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-ruby data-lang=ruby>p <span style=color:#66d9ef>RubyVM</span><span style=color:#f92672>.</span>stat
+<pre tabindex=0><code>p RubyVM.stat
 
-<span style=color:#66d9ef>module</span> Kernel
-  <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>monkey_patched_method</span>
-  <span style=color:#66d9ef>end</span>
-<span style=color:#66d9ef>end</span>
+module Kernel
+  def monkey_patched_method
+  end
+end
 
-p <span style=color:#66d9ef>RubyVM</span><span style=color:#f92672>.</span>stat
-<span style=color:#75715e># Notice that global_method_state is incremented at this point</span>
+p RubyVM.stat
+# Notice that global_method_state is incremented at this point
 
-<span style=color:#66d9ef>class</span> <span style=color:#a6e22e>A</span>
-<span style=color:#66d9ef>end</span>
+class A
+end
 
-p <span style=color:#66d9ef>RubyVM</span><span style=color:#f92672>.</span>stat
-<span style=color:#75715e># Class serial will have increased once by now</span>
+p RubyVM.stat
+# Class serial will have increased once by now
 
-<span style=color:#66d9ef>class</span> <span style=color:#a6e22e>B</span>
-<span style=color:#66d9ef>end</span>
+class B
+end
 
-p <span style=color:#66d9ef>RubyVM</span><span style=color:#f92672>.</span>stat
-<span style=color:#75715e># Class serial will have increased twice by now</span>
-</code></pre></div><p>We should see something like</p>
+p RubyVM.stat
+# Class serial will have increased twice by now
+</code></pre><p>We should see something like</p>
 <pre tabindex=0><code>{:global_method_state=&gt;133, :global_constant_state=&gt;904, :class_serial=&gt;6329}
 {:global_method_state=&gt;134, :global_constant_state=&gt;904, :class_serial=&gt;6329}
 {:global_method_state=&gt;134, :global_constant_state=&gt;905, :class_serial=&gt;6331}
@@ -127,7 +128,6 @@ p <span style=color:#66d9ef>RubyVM</span><span style=color:#f92672>.</span>stat
 </video>
 <p>However, a notable downside of said tree model is that memory use from constructing caches can quickly expand as the tree gets wider and wider at subsequent levels of branching decisions.</p>
 <p>TruffleRuby further develops on this idea by constructing a series of decision trees, with the output of each (polymorphic cache) going as input to the next. This means that if one decision tree produces the same value from multiple branches, the next decision tree sees them as the same value, instead of having a new copy of the tree (and all potential decisions cascading from that point) for the repeated values.</p>
-<p>&mldr;</p>
 <video preload=auto width=100% autoplay loop muted playsinline class=html-video>
 <source src=../../blog/dispatch-chains/Dispatch-Chain-Sideways-tree-with-duplicates.mp4 type=video/mp4>
 <span>Your browser doesn't support embedded videos, but don't worry, you can <a href=../../blog/dispatch-chains/Dispatch-Chain-Sideways-tree-with-duplicates.mp4>download it</a> and watch it with your favorite video player!</span>
@@ -139,94 +139,94 @@ p <span style=color:#66d9ef>RubyVM</span><span style=color:#f92672>.</span>stat
 <p>First, a quick disclaimer; TruffleRuby makes heavy use of indirection and abstraction within its codebase, which can detract from the exploratory process and overwhelm readers. I’ve simplified and hand-waved away details that aren’t pertinent, but have linked to the source code for the curious.</p>
 </blockquote>
 <p>Let&rsquo;s kick off the method invocation pipeline via</p>
-<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-ruby data-lang=ruby><span style=color:#75715e># Object o</span>
-o<span style=color:#f92672>.</span>send <span style=color:#e6db74>:foo_method</span>
-o<span style=color:#f92672>.</span>foo_method
-</code></pre></div><p>This will kick off the method invocation process via a <a href=https://github.com/oracle/truffleruby/blob/e2f62b89b80cf1d9334dca4d31ef8e379a8712c5/src/main/java/org/truffleruby/core/basicobject/BasicObjectNodes.java#L584-L595>SendNode</a>, which defers to several other nodes for supporting functionality. Like all Truffle DSL languages, TruffleRuby uses nodes and an AST for its intermediate representation.</p>
+<pre tabindex=0><code># Object o
+o.send :foo_method
+o.foo_method
+</code></pre><p>This will kick off the method invocation process via a <a href=https://github.com/oracle/truffleruby/blob/e2f62b89b80cf1d9334dca4d31ef8e379a8712c5/src/main/java/org/truffleruby/core/basicobject/BasicObjectNodes.java#L584-L595>SendNode</a>, which defers to several other nodes for supporting functionality. Like all Truffle DSL languages, TruffleRuby uses nodes and an AST for its intermediate representation.</p>
 <p>Within the send node, we defer to an instantiated-and-stored <a href=https://github.com/oracle/truffleruby/blob/f9ab0cf8b658bdb6b8a68880556c0b072a2e11a1/src/main/java/org/truffleruby/language/dispatch/DispatchNode.java>DispatchNode</a> responsible for handling lookup and subsequent execution from a call site effectively.</p>
-<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-java data-lang=java><span style=color:#66d9ef>protected</span> <span style=color:#a6e22e>DispatchNode</span><span style=color:#f92672>(</span>
-        MetaClassNode metaclassNode<span style=color:#f92672>,</span>
-        LookupMethodNode methodLookup<span style=color:#f92672>,</span>
-        CallInternalMethodNode callNode<span style=color:#f92672>)</span> <span style=color:#f92672>{</span>
-    <span style=color:#66d9ef>this</span><span style=color:#f92672>.</span><span style=color:#a6e22e>metaclassNode</span> <span style=color:#f92672>=</span> metaclassNode<span style=color:#f92672>;</span>
-    <span style=color:#66d9ef>this</span><span style=color:#f92672>.</span><span style=color:#a6e22e>methodLookup</span> <span style=color:#f92672>=</span> methodLookup<span style=color:#f92672>;</span>
-    <span style=color:#66d9ef>this</span><span style=color:#f92672>.</span><span style=color:#a6e22e>callNode</span> <span style=color:#f92672>=</span> callNode<span style=color:#f92672>;</span>
-<span style=color:#f92672>}</span>
-</code></pre></div><p>Among other things, the dispatch node contains a <a href=https://github.com/oracle/truffleruby/blob/75d3da3737ff43c906086aaaf349b09360b10bda/src/main/java/org/truffleruby/language/methods/LookupMethodNode.java>LookupMethodNode</a> and <a href=https://github.com/oracle/truffleruby/blob/83e0079d6f9edc96a252a59d794cd1b6af8d7ca3/src/main/java/org/truffleruby/language/methods/CallInternalMethodNode.java>CallInternalMethodNode</a>, separating the mechanisms responsible for retrieving a method on a class and calling it, respectively.</p>
+<pre tabindex=0><code>protected DispatchNode(
+        MetaClassNode metaclassNode,
+        LookupMethodNode methodLookup,
+        CallInternalMethodNode callNode) {
+    this.metaclassNode = metaclassNode;
+    this.methodLookup = methodLookup;
+    this.callNode = callNode;
+}
+</code></pre><p>Among other things, the dispatch node contains a <a href=https://github.com/oracle/truffleruby/blob/75d3da3737ff43c906086aaaf349b09360b10bda/src/main/java/org/truffleruby/language/methods/LookupMethodNode.java>LookupMethodNode</a> and <a href=https://github.com/oracle/truffleruby/blob/83e0079d6f9edc96a252a59d794cd1b6af8d7ca3/src/main/java/org/truffleruby/language/methods/CallInternalMethodNode.java>CallInternalMethodNode</a>, separating the mechanisms responsible for retrieving a method on a class and calling it, respectively.</p>
 <p>Here is what this part of the AST &ldquo;looks&rdquo; like:
 <img src=NodeHierarchy.svg alt></p>
 <p>Let’s explore <code>LookupMethodNode</code> first:</p>
-<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-ruby data-lang=ruby><span style=color:#66d9ef>class</span> <span style=color:#a6e22e>LookupMethodNode</span>
+<pre tabindex=0><code>class LookupMethodNode
 
-    cache <span style=color:#e6db74>:meta_class</span>, <span style=color:#e6db74>:name</span>
-    cache <span style=color:#e6db74>&#34;lookup_method(cached_meta_class, cached_name)&#34;</span>, <span style=color:#e6db74>as</span>: <span style=color:#e6db74>:method_lookup_result</span>
-    limit <span style=color:#e6db74>:get_cache_limit</span>
-    guard_on <span style=color:#e6db74>:cached_meta_class</span>, <span style=color:#e6db74>:cached_name</span>
-    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>lookup_method_cached</span>(meta_class, name)
-        <span style=color:#66d9ef>return</span> method_lookup_result
-    <span style=color:#66d9ef>end</span>
-<span style=color:#66d9ef>end</span>
-</code></pre></div><p>Simplified from:</p>
-<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-java data-lang=java><span style=color:#a6e22e>@Specialization</span><span style=color:#f92672>(</span>
-        guards <span style=color:#f92672>=</span> <span style=color:#f92672>{</span>
-                <span style=color:#e6db74>&#34;isSingleContext()&#34;</span><span style=color:#f92672>,</span>
-                <span style=color:#e6db74>&#34;metaClass == cachedMetaClass&#34;</span><span style=color:#f92672>,</span>
-                <span style=color:#e6db74>&#34;name == cachedName&#34;</span><span style=color:#f92672>,</span>
-                <span style=color:#e6db74>&#34;config == cachedConfig&#34;</span> <span style=color:#f92672>},</span>
-        assumptions <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;methodLookupResult.getAssumptions()&#34;</span><span style=color:#f92672>,</span>
-        limit <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;getCacheLimit()&#34;</span><span style=color:#f92672>)</span>
-<span style=color:#66d9ef>protected</span> InternalMethod <span style=color:#a6e22e>lookupMethodCached</span><span style=color:#f92672>(</span>
-        Frame frame<span style=color:#f92672>,</span> RubyClass metaClass<span style=color:#f92672>,</span> String name<span style=color:#f92672>,</span> DispatchConfiguration config<span style=color:#f92672>,</span>
-        <span style=color:#a6e22e>@Cached</span><span style=color:#f92672>(</span><span style=color:#e6db74>&#34;metaClass&#34;</span><span style=color:#f92672>)</span> RubyClass cachedMetaClass<span style=color:#f92672>,</span>
-        <span style=color:#a6e22e>@Cached</span><span style=color:#f92672>(</span><span style=color:#e6db74>&#34;name&#34;</span><span style=color:#f92672>)</span> String cachedName<span style=color:#f92672>,</span>
-        <span style=color:#a6e22e>@Cached</span><span style=color:#f92672>(</span><span style=color:#e6db74>&#34;config&#34;</span><span style=color:#f92672>)</span> DispatchConfiguration cachedConfig<span style=color:#f92672>,</span>
-        <span style=color:#a6e22e>@Cached</span><span style=color:#f92672>(</span><span style=color:#e6db74>&#34;lookupCached(getContext(), frame, cachedMetaClass, cachedName, config)&#34;</span><span style=color:#f92672>)</span> MethodLookupResult methodLookupResult<span style=color:#f92672>)</span> <span style=color:#f92672>{</span>
+    cache :meta_class, :name
+    cache &quot;lookup_method(cached_meta_class, cached_name)&quot;, as: :method_lookup_result
+    limit :get_cache_limit
+    guard_on :cached_meta_class, :cached_name
+    def lookup_method_cached(meta_class, name)
+        return method_lookup_result
+    end
+end
+</code></pre><p>Simplified from:</p>
+<pre tabindex=0><code>@Specialization(
+        guards = {
+                &quot;isSingleContext()&quot;,
+                &quot;metaClass == cachedMetaClass&quot;,
+                &quot;name == cachedName&quot;,
+                &quot;config == cachedConfig&quot; },
+        assumptions = &quot;methodLookupResult.getAssumptions()&quot;,
+        limit = &quot;getCacheLimit()&quot;)
+protected InternalMethod lookupMethodCached(
+        Frame frame, RubyClass metaClass, String name, DispatchConfiguration config,
+        @Cached(&quot;metaClass&quot;) RubyClass cachedMetaClass,
+        @Cached(&quot;name&quot;) String cachedName,
+        @Cached(&quot;config&quot;) DispatchConfiguration cachedConfig,
+        @Cached(&quot;lookupCached(getContext(), frame, cachedMetaClass, cachedName, config)&quot;) MethodLookupResult methodLookupResult) {
 
-    <span style=color:#66d9ef>return</span> methodLookupResult<span style=color:#f92672>.</span><span style=color:#a6e22e>getMethod</span><span style=color:#f92672>();</span>
-<span style=color:#f92672>}</span>
-</code></pre></div><p>We&rsquo;ve encountered our first generalized PIC in the dispatch chain! Caching on the <code>metaClass</code> (essentially the class of the object) and the <code>name</code> of the method being passed in, this node takes a Ruby class and method name to look up, and pops out an <code>InternalMethod</code> object. Note that this stores up to <code>getCacheLimit()</code> entries, which is why it is a <em>poly</em> morphic cache.</p>
+    return methodLookupResult.getMethod();
+}
+</code></pre><p>We&rsquo;ve encountered our first generalized PIC in the dispatch chain! Caching on the <code>metaClass</code> (essentially the class of the object) and the <code>name</code> of the method being passed in, this node takes a Ruby class and method name to look up, and pops out an <code>InternalMethod</code> object. Note that this stores up to <code>getCacheLimit()</code> entries, which is why it is a <em>poly</em> morphic cache.</p>
 <p>Next, let&rsquo;s examine <code>CallInternalMethodNode</code>, which is passed the lookup node’s <code>InternalMethod</code> result:</p>
-<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-java data-lang=java><span style=color:#66d9ef>final</span> InternalMethod method <span style=color:#f92672>=</span> lookupMethodNode<span style=color:#f92672>.</span><span style=color:#a6e22e>execute</span><span style=color:#f92672>(</span>frame<span style=color:#f92672>,</span> metaclass<span style=color:#f92672>,</span> methodName<span style=color:#f92672>,</span> config<span style=color:#f92672>);</span>
+<pre tabindex=0><code>final InternalMethod method = lookupMethodNode.execute(frame, metaclass, methodName, config);
 
-<span style=color:#75715e>/*
-</span><span style=color:#75715e> * Cut out implementationdetails
-</span><span style=color:#75715e> */</span>
+/*
+ * Cut out implementationdetails
+ */
 
-<span style=color:#66d9ef>return</span> callNode<span style=color:#f92672>.</span><span style=color:#a6e22e>execute</span><span style=color:#f92672>(</span>frame<span style=color:#f92672>,</span> method<span style=color:#f92672>,</span> receiver<span style=color:#f92672>,</span> rubyArgs<span style=color:#f92672>,</span> literalCallNode<span style=color:#f92672>);</span>
-</code></pre></div><p>Simplified once again:</p>
-<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-ruby data-lang=ruby><span style=color:#66d9ef>class</span> <span style=color:#a6e22e>CallInternalMethodNode</span>
+return callNode.execute(frame, method, receiver, rubyArgs, literalCallNode);
+</code></pre><p>Simplified once again:</p>
+<pre tabindex=0><code>class CallInternalMethodNode
 
-    cache <span style=color:#e6db74>:method</span>
-    cache <span style=color:#e6db74>&#34;method.get_call_target&#34;</span>, <span style=color:#e6db74>as</span>: <span style=color:#e6db74>:call_target</span>
-    cache <span style=color:#e6db74>&#34;create_call(cached_method.get_name, cached_call_target)&#34;</span>, <span style=color:#e6db74>as</span>: <span style=color:#e6db74>:call_node</span>
-    guard_on <span style=color:#e6db74>:cached_call_target</span>, <span style=color:#e6db74>&#34;!cached_method.always_inlined?&#34;</span>
-    limit <span style=color:#e6db74>:get_cache_limit</span>
-    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>call_cached</span>(method, <span style=color:#f92672>*</span>method_args)
-        <span style=color:#75715e># Note how the call node is generated and cached as part of the cache entry from a cached method and cached call target.</span>
-        <span style=color:#75715e># As long as the guards are not violated, all of this is stored in the poly cache and invoked speedily.</span>
-        call_node<span style=color:#f92672>.</span>call(call_target, method_args)
-    <span style=color:#66d9ef>end</span>
-<span style=color:#66d9ef>end</span>
-</code></pre></div><p>From:</p>
-<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-java data-lang=java><span style=color:#a6e22e>@Specialization</span><span style=color:#f92672>(</span>
-        guards <span style=color:#f92672>=</span> <span style=color:#f92672>{</span>
-                <span style=color:#e6db74>&#34;isSingleContext()&#34;</span><span style=color:#f92672>,</span>
-                <span style=color:#e6db74>&#34;method.getCallTarget() == cachedCallTarget&#34;</span><span style=color:#f92672>,</span>
-                <span style=color:#e6db74>&#34;!cachedMethod.alwaysInlined()&#34;</span> <span style=color:#f92672>},</span>
-        assumptions <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;getMethodAssumption(cachedMethod)&#34;</span><span style=color:#f92672>,</span> <span style=color:#75715e>// to remove the inline cache entry when the method is redefined or removed
-</span><span style=color:#75715e></span>        limit <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;getCacheLimit()&#34;</span><span style=color:#f92672>)</span>
-<span style=color:#66d9ef>protected</span> Object <span style=color:#a6e22e>callCached</span><span style=color:#f92672>(</span>
-        InternalMethod method<span style=color:#f92672>,</span> Object receiver<span style=color:#f92672>,</span> Object<span style=color:#f92672>[]</span> rubyArgs<span style=color:#f92672>,</span> LiteralCallNode literalCallNode<span style=color:#f92672>,</span>
-        <span style=color:#a6e22e>@Cached</span><span style=color:#f92672>(</span><span style=color:#e6db74>&#34;method.getCallTarget()&#34;</span><span style=color:#f92672>)</span> RootCallTarget cachedCallTarget<span style=color:#f92672>,</span>
-        <span style=color:#a6e22e>@Cached</span><span style=color:#f92672>(</span><span style=color:#e6db74>&#34;method&#34;</span><span style=color:#f92672>)</span> InternalMethod cachedMethod<span style=color:#f92672>,</span>
-        <span style=color:#a6e22e>@Cached</span><span style=color:#f92672>(</span><span style=color:#e6db74>&#34;createCall(cachedMethod.getName(), cachedCallTarget)&#34;</span><span style=color:#f92672>)</span> DirectCallNode callNode<span style=color:#f92672>)</span> <span style=color:#f92672>{</span>
-    <span style=color:#66d9ef>if</span> <span style=color:#f92672>(</span>literalCallNode <span style=color:#f92672>!=</span> <span style=color:#66d9ef>null</span><span style=color:#f92672>)</span> <span style=color:#f92672>{</span>
-        literalCallNode<span style=color:#f92672>.</span><span style=color:#a6e22e>copyRuby2KeywordsHash</span><span style=color:#f92672>(</span>rubyArgs<span style=color:#f92672>,</span> cachedMethod<span style=color:#f92672>.</span><span style=color:#a6e22e>getSharedMethodInfo</span><span style=color:#f92672>());</span>
-    <span style=color:#f92672>}</span>
+    cache :method
+    cache &quot;method.get_call_target&quot;, as: :call_target
+    cache &quot;create_call(cached_method.get_name, cached_call_target)&quot;, as: :call_node
+    guard_on :cached_call_target, &quot;!cached_method.always_inlined?&quot;
+    limit :get_cache_limit
+    def call_cached(method, *method_args)
+        # Note how the call node is generated and cached as part of the cache entry from a cached method and cached call target.
+        # As long as the guards are not violated, all of this is stored in the poly cache and invoked speedily.
+        call_node.call(call_target, method_args)
+    end
+end
+</code></pre><p>From:</p>
+<pre tabindex=0><code>@Specialization(
+        guards = {
+                &quot;isSingleContext()&quot;,
+                &quot;method.getCallTarget() == cachedCallTarget&quot;,
+                &quot;!cachedMethod.alwaysInlined()&quot; },
+        assumptions = &quot;getMethodAssumption(cachedMethod)&quot;, // to remove the inline cache entry when the method is redefined or removed
+        limit = &quot;getCacheLimit()&quot;)
+protected Object callCached(
+        InternalMethod method, Object receiver, Object[] rubyArgs, LiteralCallNode literalCallNode,
+        @Cached(&quot;method.getCallTarget()&quot;) RootCallTarget cachedCallTarget,
+        @Cached(&quot;method&quot;) InternalMethod cachedMethod,
+        @Cached(&quot;createCall(cachedMethod.getName(), cachedCallTarget)&quot;) DirectCallNode callNode) {
+    if (literalCallNode != null) {
+        literalCallNode.copyRuby2KeywordsHash(rubyArgs, cachedMethod.getSharedMethodInfo());
+    }
 
-    <span style=color:#66d9ef>return</span> callNode<span style=color:#f92672>.</span><span style=color:#a6e22e>call</span><span style=color:#f92672>(</span>RubyArguments<span style=color:#f92672>.</span><span style=color:#a6e22e>repackForCall</span><span style=color:#f92672>(</span>rubyArgs<span style=color:#f92672>));</span>
-<span style=color:#f92672>}</span>
-</code></pre></div><p>As a result, we&rsquo;re able to sequence these PICs so that the processes of converting a call site to a method lookup and the method execution are cached separately & based on unique properties relevant to the data flow at each process.</p>
+    return callNode.call(RubyArguments.repackForCall(rubyArgs));
+}
+</code></pre><p>As a result, we&rsquo;re able to sequence these PICs so that the processes of converting a call site to a method lookup and the method execution are cached separately & based on unique properties relevant to the data flow at each process.</p>
 <h2 id=what-can-we-take-away-from-it-all>What can we take away from it all?</h2>
 <p>TruffleRuby uses this advanced and complex/compound design of inline caching because it tackles some of the dynamic nature of Ruby. For example, complex class hierarchies methods that are aliased with different names can result in a call to the same code, and our technique means we can de-duplicate that call and ensure speedy execution of interpreted <em>and</em> JITted code.</p>
 <p>Currently, we&rsquo;re using these techniques to optimise conventional Ruby and especially metaprogramming in powerful ways. We think we can use their power and flexibility to address other Ruby idioms that aren&rsquo;t currently well-optimised, such as extensive use of singletons to define per-object methods. At the moment these trip up the VM as they cause the first layer of caching to become megamorphic. Our ongoing work is looking at adding another level of indirection and further specializing on top of the dispatch system to accommodate for singleton classes, ensuring that idiomatic & expressive Ruby continues to be performant.</p>
@@ -250,5 +250,10 @@ o<span style=color:#f92672>.</span>foo_method
 </div>
 </div>
 </section>
+<script src=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.2.0/highlight.min.js integrity="sha512-TDKKr+IvoqZnPzc3l35hdjpHD0m+b2EC2SrLEgKDRWpxf2rFCxemkgvJ5kfU48ip+Y+m2XVKyOCD85ybtlZDmw==" crossorigin=anonymous></script>
+<script src=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.2.0/languages/java.min.js defer></script>
+<script src=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.2.0/languages/python.min.js defer></script>
+<script src=https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.2.0/languages/ruby.min.js defer></script>
+<script>window.addEventListener('load',function(){hljs.initHighlighting()},!0)</script>
 </body>
 </html>
